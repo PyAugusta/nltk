@@ -1,5 +1,10 @@
+#folders
 venv/
 __pycache__/
 tutorial_data/
 
+#secrets
 config.py
+
+#file types
+*.pickle

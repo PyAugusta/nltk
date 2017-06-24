@@ -8,3 +8,6 @@ config.py
 
 #file types
 *.pickle
+
+#log files
+tester.log

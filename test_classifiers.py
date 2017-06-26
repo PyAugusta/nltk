@@ -24,7 +24,7 @@ from nltk import NaiveBayesClassifier
 log = logging.getLogger('tester')
 log.setLevel(logging.INFO)
 
-logconsole_formatter = logging.Formatter('%(message)s')
+logconsole_formatter = logging.Formatter('+ %(message)s')
 logfile_formatter = logging.Formatter('##### %(asctime)s - %(name)s - %(levelname)s:\n %(message)s')
 
 stream_handler = logging.StreamHandler()
@@ -53,6 +53,17 @@ twitter_data = [f[:f.rfind('.')] for f in os.listdir(twitter_dir) if f.endswith(
 TOKEN_DIST = defaultdict(int)
 NEGATIVE = 'neg'
 POSITIVE = 'pos'
+informative_pos_types = [
+    "JJ",   # adjective
+    "JJR",  # adjective, comparitive
+    "JJS",  # adjective, superlative
+    "NN",   # noun, sungular
+    "NNS",  # noun, plural
+    "PRP",  # possesive pronoun
+    "RB",   # adverb
+    "RBR",  # adverb, comparitive
+    "RBS"   # adverb, superlative
+]
 
 
 ##################################
@@ -79,6 +90,11 @@ class FalseDict(dict):
             
             
     def __getitem__(self, key):
+        '''This is what happens when you access a dict item using square brackets:
+        
+        >>> some_dict[some_key]
+        some_value
+        '''
         try:
             val = dict.__getitem__(self, key)
         except KeyError:
@@ -112,15 +128,18 @@ def load_twitter_data(filename):
     return data
     
     
-def tokenized_tweets(twitter_data):
+def tokenized_tweets(twitter_data, accepted_pos_list=informative_pos_types):
     '''Extracts and tokenizes the 'text' value from each
     row in twitter_data, and updates the TOKEN_DIST global
+    with the accepted word types
     '''
     tweets = []
     for data_row in twitter_data:
         tokenized = {w.lower() for w in word_tokenize(data_row['text']) if w.lower() not in stopwords.words('english')}
-        for tkn in tokenized:
-            TOKEN_DIST[tkn] += 1
+        pos = nltk.pos_tag(tokenized)
+        for tkn_info in pos:
+            if tkn_info[1] in accepted_pos_list:
+                TOKEN_DIST[tkn_info[0]] += 1
         tweets.append(tokenized)
     return tweets
 
@@ -142,6 +161,7 @@ def find_features(tkns, word_features):
         if w in tkns:
             features[w] = True
     return features
+    
     
 def pickle_it(obj, fpath):
     '''pickles an object to the given fpath
@@ -205,6 +225,7 @@ def main():
     
     NB_classifier = nltk.NaiveBayesClassifier.train(training_set)
     log.info(("Original Naive Bayes Algo accuracy percent:", (nltk.classify.accuracy(NB_classifier, testing_set))*100))
+    NB_classifier.show_most_informative_features(15)
     save_classifier(NB_classifier, 'nb_classifier.pickle')
     
     save_tokens(top_5000, 'top_5000.pickle')
